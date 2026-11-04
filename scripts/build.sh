@@ -135,6 +135,23 @@ if enable_ksu:
     edit("security/selinux/include/objsec.h", objsec)
 
     # (d) neutralise the racing build-time mutations in KernelSU's own Kbuild
+    # (d) dtc: pkg-config finds libyaml on the runner, but the host link then
+    # uses the clang toolchain's ld and dies on every yaml_* symbol. We never
+    # emit YAML, so build dtc with -DNO_YAML unconditionally.
+    p = os.path.join(root, 'scripts/dtc/Makefile')
+    t = open(p, encoding='utf-8').read()
+    if 'DTC_FORCE_NO_YAML' not in t:
+        a = t.index('ifeq ($(shell pkg-config --exists yaml-0.1')
+        b_ = t.index('endif'+chr(10), a) + len('endif'+chr(10))
+        t = (t[:a]
+             + '# DTC_FORCE_NO_YAML: keep dtc free of libyaml (no YAML output needed)'+chr(10)
+             + 'HOST_EXTRACFLAGS += -DNO_YAML'+chr(10)
+             + t[b_:])
+        open(p, 'w', encoding='utf-8').write(t)
+        print('    patched scripts/dtc/Makefile (NO_YAML)')
+    else:
+        print('    already patched scripts/dtc/Makefile')
+
     kb = os.path.join(root, "drivers/kernelsu/Kbuild")
     lines, n = [], 0
     for line in open(kb, encoding="utf-8").read().splitlines(keepends=True):
@@ -145,6 +162,22 @@ if enable_ksu:
             lines.append(line)
     open(kb, "w", encoding="utf-8").write("".join(lines))
     print(f"    neutralised {n} build-time source mutations in KernelSU Kbuild")
+else:
+    # pure kernel (Magisk): no KernelSU sources on disk, so kconfig must not
+    # source drivers/kernelsu/Kconfig and drivers/ must not descend into it
+    for rel, pat, repl in (
+        ("drivers/Kconfig", 'source "drivers/kernelsu/Kconfig"',
+         '# [ksu-ksun] source "drivers/kernelsu/Kconfig"'),
+        ("drivers/Makefile", "obj-y += kernelsu/", "# [ksu-ksun] obj-y += kernelsu/"),
+    ):
+        p = os.path.join(root, rel)
+        t = open(p, encoding="utf-8").read()
+        if repl in t:
+            print("    already detached " + rel)
+        else:
+            assert pat in t, rel
+            open(p, "w", encoding="utf-8").write(t.replace(pat, repl, 1))
+            print("    detached kernelsu from " + rel)
 PYEOF
 
 # ---- 3. defconfig ------------------------------------------------------------

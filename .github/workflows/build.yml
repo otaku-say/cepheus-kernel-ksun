@@ -134,6 +134,8 @@ jobs:
           WORK: ${{ github.workspace }}/work
           OUT: ${{ github.workspace }}/out
         run: |
+          # pipefail: `| tee` must not swallow a failing build
+          set -o pipefail
           chmod +x scripts/build.sh
           ./scripts/build.sh 2>&1 | tee build.log
 
