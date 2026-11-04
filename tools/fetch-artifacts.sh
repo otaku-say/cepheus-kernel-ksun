@@ -10,7 +10,10 @@ mkdir -p "$DEST"; cd "$DEST"
 curl -sS "${AUTH[@]}" --max-time 40 "$API/repos/$REPO/actions/artifacts?per_page=20" \
  | python -c "
 import json,sys
-for a in json.load(sys.stdin)['artifacts']:
+seen=set()
+for a in json.load(sys.stdin)['artifacts']:   # API returns newest first
+    if a['name'] in seen or a['expired']: continue
+    seen.add(a['name'])
     print(a['id'], a['name'], a['size_in_bytes'])
 " > list.txt
 cat list.txt

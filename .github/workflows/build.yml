@@ -154,11 +154,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cepheus-kernel-${{ matrix.variant }}-${{ env.KERNEL_REF }}
+          # upload the whole output dir: enumerating paths silently dropped the
+          # AnyKernel3 zip on the first green run
           path: |
-            out/cepheus-kernel-ksun.zip
-            out/Image
-            out/Image.gz-dtb
-            out/boot.img
+            out/
             build.log
           if-no-files-found: warn
           retention-days: 30
