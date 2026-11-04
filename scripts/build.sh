@@ -296,8 +296,10 @@ if [ -n "${RAMDISK:-}" ]; then
   if [ "$ENABLE_KSU" = "1" ]; then
     # allow_shell + shell_su_adb_only are module params, so they have to travel
     # in the kernel command line of the packed image
-    cp "$CMDLINE_FILE" "$OUT/boot.cmdline"
-    printf ' kernelsu.allow_shell=1 kernelsu.force_feature=shell_su_adb_only:1' >> "$OUT/boot.cmdline"
+    # keep it a single line: the kernel arg parser splits on spaces/tabs only,
+    # a newline would be glued to the param name and the param silently dropped
+    ksucmd="$(tr -s '[:space:]' ' ' < "$CMDLINE_FILE" | sed 's/ *$//')"
+    printf '%s kernelsu.allow_shell=1 kernelsu.force_feature=shell_su_adb_only:1'       "$ksucmd" > "$OUT/boot.cmdline"
     CMDLINE_FILE="$OUT/boot.cmdline"
   fi
   AVB_VBMETA="$(resolve "${AVB_VBMETA:-prebuilt/boot.avb.vbmeta}")"

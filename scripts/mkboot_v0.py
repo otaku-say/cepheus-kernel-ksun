@@ -85,7 +85,10 @@ def main():
     raw, dtb = split_gz_dtb(a.kernel)
     kblob = raw + dtb if a.no_qcom_wrapper else QCOM_MAGIC + struct.pack("<I", len(raw)) + raw + dtb
     ramdisk = open(a.ramdisk, "rb").read()
-    cmdline = open(a.cmdline_file, encoding="utf-8").read().strip()
+    # collapse any whitespace: the file may end with a newline before an
+    # appended parameter list, and a newline inside the cmdline field is not a
+    # separator for the kernel arg parser (the param would be dropped)
+    cmdline = " ".join(open(a.cmdline_file, encoding="utf-8").read().split())
 
     # header id[]: sha1 over kernel+ramdisk with the length words, as mkbootimg does
     digest = hashlib.sha1()

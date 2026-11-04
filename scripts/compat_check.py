@@ -228,6 +228,13 @@ def main():
         else:
             r.add("ramdisk", FAIL, "ramdisk differs from stock")
 
+        bad = [c for c in b["cmdline"] if ord(c) < 0x20]
+        if bad:
+            r.add("cmdline encoding", FAIL,
+                  "control characters in cmdline (params after them are ignored by the kernel)")
+        else:
+            r.add("cmdline encoding", PASS, "printable only, params are parseable")
+
         stock_cmd = ""
         for cand in ("prebuilt/boot.cmdline",):
             if os.path.exists(cand):
