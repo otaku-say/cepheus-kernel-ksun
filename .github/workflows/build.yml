@@ -1,0 +1,150 @@
+name: build
+
+# Xiaomi Mi 9 (cepheus) kernel: crDroid 16.0 base (Linux 4.14.355) + KernelSU-Next
+# Everything the build does lives in scripts/build.sh so the same steps can be
+# reproduced locally (`scripts/build.sh`) or in a container.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**']
+  pull_request:
+    paths-ignore: ['**.md', 'docs/**']
+  workflow_dispatch:
+    inputs:
+      kernel_ref:
+        description: 'crDroid kernel branch to build'
+        default: '16.0'
+        type: choice
+        options: ['16.0', '15.0', '14.0']
+      ksu_sha:
+        description: 'KernelSU-Next commit (must be a legacy UAPI-5 commit)'
+        default: 'e3292239f3b8384cc52bdc6f23995d643271a7ce'
+      toolchain:
+        description: 'clang toolchain'
+        default: 'proton'
+        type: choice
+        options: ['proton', 'host']
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KERNEL_REF: ${{ inputs.kernel_ref || '16.0' }}
+  KSU_SHA: ${{ inputs.ksu_sha || 'e3292239f3b8384cc52bdc6f23995d643271a7ce' }}
+  TOOLCHAIN: ${{ inputs.toolchain || 'proton' }}
+  KSU_VERSION_OVERRIDE: '33355'      # == KernelSU-Next manager v3.4.2 versionCode
+  KSU_VERSION_TAG_OVERRIDE: 'v3.4.2'
+  KSU_MANAGER_PACKAGE: 'com.rifsxd.ksunext'
+
+jobs:
+  # Cheap gate: every hook call site, pin and patch must be sane before we burn
+  # 40 minutes of compile time.
+  verify:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Hook call sites present in the kernel tree
+        run: |
+          set -e
+          base="https://raw.githubusercontent.com/crdroidandroid/android_kernel_xiaomi_cepheus/${KERNEL_REF}"
+          fail=0
+          check() { # file, expected symbol
+            n=$(curl -fsSL "$base/$1" | grep -c "$2" || true)
+            printf '  %-24s %-32s %s\n' "$1" "$2" "$n"
+            [ "$n" -ge 1 ] || { echo "    MISSING"; fail=1; }
+          }
+          check fs/exec.c ksu_handle_execveat
+          check fs/open.c ksu_handle_faccessat
+          check fs/stat.c ksu_handle_stat
+          check fs/read_write.c ksu_handle_vfs_read
+          check drivers/input/input.c ksu_handle_input_handle_event
+          exit $fail
+
+      - name: KernelSU pin still reports UAPI 5 (manager v3.4.2 requirement)
+        run: |
+          set -e
+          v=$(curl -fsSL "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/${KSU_SHA}/uapi/supercall.h" \
+              | sed -n 's/^#define KERNEL_SU_UAPI_VERSION //p')
+          echo "KERNEL_SU_UAPI_VERSION = $v"
+          [ "$v" = "5" ] || { echo "::error::pin must stay on a UAPI-5 commit for manager v3.4.2"; exit 1; }
+
+      - name: Deterministic patches apply on the pristine tree
+        run: |
+          set -e
+          git clone -q --depth=1 -b "$KERNEL_REF" \
+            https://github.com/crdroidandroid/android_kernel_xiaomi_cepheus /tmp/k
+          for p in patches/kernel/*.patch; do
+            echo "  $p"; git -C /tmp/k apply --check "$p"
+          done
+
+  build:
+    needs: verify
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [ksu, pure]
+    name: build-${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential bc bison flex libssl-dev libyaml-dev libelf-dev \
+            gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi \
+            zip unzip python3 git ca-certificates
+
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: cepheus-${{ env.KERNEL_REF }}-${{ matrix.variant }}-${{ env.KSU_SHA }}
+          max-size: 2G
+
+      - name: Cache proton-clang
+        if: env.TOOLCHAIN == 'proton'
+        uses: actions/cache@v4
+        with:
+          path: work/proton-clang
+          key: proton-clang-${{ hashFiles('scripts/build.sh') }}
+
+      - name: Build
+        env:
+          ENABLE_KSU: ${{ matrix.variant == 'ksu' && '1' || '0' }}
+          # committed stock ramdisk/cmdline/AVB block => a boot.img that is
+          # structurally identical to the one inside crDroid 10.14
+          RAMDISK: prebuilt/boot.ramdisk.lz4
+          JOBS: ${{ github.event_name == 'pull_request' && 2 || 4 }}
+          WORK: ${{ github.workspace }}/work
+          OUT: ${{ github.workspace }}/out
+        run: |
+          chmod +x scripts/build.sh
+          ./scripts/build.sh 2>&1 | tee build.log
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### cepheus ${{ matrix.variant }}"
+            echo '```'
+            grep -E '^(==>|    )' build.log | tail -40 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cepheus-kernel-${{ matrix.variant }}-${{ env.KERNEL_REF }}
+          path: |
+            out/cepheus-kernel-ksun.zip
+            out/Image
+            out/Image.gz-dtb
+            out/boot.img
+            build.log
+          if-no-files-found: warn
+          retention-days: 30
