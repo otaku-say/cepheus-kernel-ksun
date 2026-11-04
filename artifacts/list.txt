@@ -1,2 +1,0 @@
-13305472481 cepheus-kernel-pure-16.0 1079
-13304589817 cepheus-kernel-ksu-16.0 2571
