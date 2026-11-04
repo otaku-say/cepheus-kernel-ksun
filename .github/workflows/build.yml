@@ -26,6 +26,9 @@ on:
         type: choice
         options: ['proton', 'host']
 
+permissions:
+  contents: read
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
@@ -96,7 +99,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential bc bison flex libssl-dev libyaml-dev libelf-dev \
+            build-essential bc bison flex libssl-dev libyaml-dev libelf-dev ccache \
             gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi \
             zip unzip python3 git ca-certificates
 

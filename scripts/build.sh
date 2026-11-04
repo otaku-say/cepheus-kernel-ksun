@@ -165,6 +165,11 @@ fi
 # toolchain-agnostic instead of patching vendor trees
 export KCFLAGS="${KCFLAGS:--Wno-unknown-warning-option -Wno-default-const-init-var-unsafe}"
 CC_BIN="${CC_BIN:-clang}"
+# ccache pays off massively on kernel rebuilds (tens of minutes -> minutes)
+if [ "${USE_CCACHE:-1}" = "1" ] && command -v ccache >/dev/null 2>&1; then
+  CC_BIN="ccache $CC_BIN"
+  log "ccache: $(ccache --version | head -1)"
+fi
 TRIPLE="${TRIPLE:-${CLANG_PREFIX}aarch64-linux-gnu-}"
 export CROSS_COMPILE="${CROSS_COMPILE:-$TRIPLE}"
 log "clang: $($CC_BIN --version | head -1)"
