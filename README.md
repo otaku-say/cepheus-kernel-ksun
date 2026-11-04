@@ -90,6 +90,37 @@ page 1        "UNCOMPRESSED_IMG" + u32 len(Image) + raw Image + 追加 DTB(4 个
 用原厂内核数据回灌验证的结果：**除 header 里 20 字节遗留 `id` 字段外，
 与原厂 `boot.img` 逐字节一致**（唯一预期差异）。
 
+
+## 已验证产物（GitHub Actions run 41802246301，全绿）
+
+| 产物 (ksu 变体) | 大小 | 说明 |
+|---|---|---|
+| `Image` | 47,953,936 B | `Linux version 4.14.355-openela-InfiniR_cepheus_v2.00_A16_KSUN`，Proton Clang 13 |
+| `Image.gz-dtb` | 18,605,797 B | gzip(Image) + 追加 DTB |
+| `boot.img` | 134,217,728 B | 与原厂 boot.img 同构（128 MiB 分区大小） |
+| `cepheus-kernel-ksun.zip` | 19,819,010 B | AnyKernel3 |
+
+`pure` 变体（`CONFIG_KSU=n`，给 Magisk）：`Image` 47,689,744 B，`boot.img` sha256 `80ac75ad…`。
+
+构建期断言全部通过（缺一个就红）：
+
+```
+ok  ksu_handle_execveat / faccessat / stat / vfs_read / sys_reboot /
+    input_handle_event / ksu_lsm_hook_init        (vmlinux 中全部定义)
+hook refs  fs/exec.o 1 | fs/open.o 1 | fs/stat.o 1 | fs/read_write.o 1
+           drivers/input/input.o 1 | kernel/reboot.o 1
+ok  shell_su_adb_only present
+```
+
+boot.img 结构核对（对照原厂 `crDroidAndroid-14.0-20250523`）：
+
+| | 原厂 | 本次构建 |
+|---|---|---|
+| 总大小 | 134,217,728 | 134,217,728 |
+| kernel 载荷 | `UNCOMPRESSED_IMG`+Image+DTB，49,776,700 | 同结构，49,952,820 |
+| ramdisk | lz4，1,996,541 | 同（原样保留） |
+| AVB | 页对齐处 704 B vbmeta + 末尾 `AVBf` | 同 |
+
 ## 构建
 
 ```bash
