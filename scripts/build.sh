@@ -135,23 +135,6 @@ if enable_ksu:
     edit("security/selinux/include/objsec.h", objsec)
 
     # (d) neutralise the racing build-time mutations in KernelSU's own Kbuild
-    # (d) dtc: pkg-config finds libyaml on the runner, but the host link then
-    # uses the clang toolchain's ld and dies on every yaml_* symbol. We never
-    # emit YAML, so build dtc with -DNO_YAML unconditionally.
-    p = os.path.join(root, 'scripts/dtc/Makefile')
-    t = open(p, encoding='utf-8').read()
-    if 'DTC_FORCE_NO_YAML' not in t:
-        a = t.index('ifeq ($(shell pkg-config --exists yaml-0.1')
-        b_ = t.index('endif'+chr(10), a) + len('endif'+chr(10))
-        t = (t[:a]
-             + '# DTC_FORCE_NO_YAML: keep dtc free of libyaml (no YAML output needed)'+chr(10)
-             + 'HOST_EXTRACFLAGS += -DNO_YAML'+chr(10)
-             + t[b_:])
-        open(p, 'w', encoding='utf-8').write(t)
-        print('    patched scripts/dtc/Makefile (NO_YAML)')
-    else:
-        print('    already patched scripts/dtc/Makefile')
-
     kb = os.path.join(root, "drivers/kernelsu/Kbuild")
     lines, n = [], 0
     for line in open(kb, encoding="utf-8").read().splitlines(keepends=True):
@@ -178,6 +161,22 @@ else:
             assert pat in t, rel
             open(p, "w", encoding="utf-8").write(t.replace(pat, repl, 1))
             print("    detached kernelsu from " + rel)
+# (d) dtc: pkg-config finds libyaml on the runner, but the host link then
+# uses the clang toolchain's ld and dies on every yaml_* symbol. We never
+# emit YAML, so build dtc with -DNO_YAML unconditionally.
+p = os.path.join(root, 'scripts/dtc/Makefile')
+t = open(p, encoding='utf-8').read()
+if 'DTC_FORCE_NO_YAML' not in t:
+    a = t.index('ifeq ($(shell pkg-config --exists yaml-0.1')
+    b_ = t.index('endif'+chr(10), a) + len('endif'+chr(10))
+    t = (t[:a]
+         + '# DTC_FORCE_NO_YAML: keep dtc free of libyaml (no YAML output needed)'+chr(10)
+         + 'HOST_EXTRACFLAGS += -DNO_YAML'+chr(10)
+         + t[b_:])
+    open(p, 'w', encoding='utf-8').write(t)
+    print('    patched scripts/dtc/Makefile (NO_YAML)')
+else:
+    print('    already patched scripts/dtc/Makefile')
 PYEOF
 
 # ---- 3. defconfig ------------------------------------------------------------
