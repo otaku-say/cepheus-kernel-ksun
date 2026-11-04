@@ -8,3 +8,9 @@
 # Only changes the version string suffix ("-g<sha>"); the 16.0 defconfig turns
 # it off so that two builds of the same commit are byte-identical.
 CONFIG_LOCALVERSION_AUTO    version string only, off for reproducible builds
+
+# The stock kernel does ship KernelSU, but it is the ancient 11872 build with
+# allow_shell=false, so it cannot root anything (verified on device). The ksu
+# variant rebuilds it properly on KernelSU-Next; the pure variant deliberately
+# leaves it out so it can be paired with Magisk instead.
+CONFIG_KSU                  stock KSU 11872 is unusable; ksu variant re-enables it, pure variant drops it on purpose
