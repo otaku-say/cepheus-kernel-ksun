@@ -160,15 +160,24 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Stage artefacts
+        if: always()
+        run: |
+          # `out/` is also the kernel's O= build tree (thousands of .o files), so
+          # stage only the deliverables in a clean directory before uploading
+          mkdir -p dist
+          for f in Image Image.gz-dtb boot.img cepheus-kernel-ksun.zip compat-report.md boot.cmdline; do
+            [ -f "out/$f" ] && cp "out/$f" "dist/$f" && echo "staged $f"
+          done
+          ls -lh dist || true
+
       - name: Upload artefacts
         if: always()          # keep build.log even when the build fails
         uses: actions/upload-artifact@v4
         with:
           name: cepheus-kernel-${{ matrix.variant }}-${{ env.KERNEL_REF }}
-          # upload the whole output dir: enumerating paths silently dropped the
-          # AnyKernel3 zip on the first green run
           path: |
-            out/
+            dist/
             build.log
           if-no-files-found: warn
           retention-days: 30
