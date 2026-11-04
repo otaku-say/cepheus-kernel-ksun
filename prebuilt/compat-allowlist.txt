@@ -1,0 +1,10 @@
+# Intentional differences from the stock crDroid 10.14 kernel config.
+#
+# Format:  CONFIG_NAME   reason
+# Everything listed here is skipped by the "config parity" check, so only add a
+# line when you have a reason you would defend in a code review. Anything that
+# could remove a driver the ROM's vendor blobs need must NOT be added here.
+
+# Only changes the version string suffix ("-g<sha>"); the 16.0 defconfig turns
+# it off so that two builds of the same commit are byte-identical.
+CONFIG_LOCALVERSION_AUTO    version string only, off for reproducible builds

@@ -139,6 +139,17 @@ jobs:
           chmod +x scripts/build.sh
           ./scripts/build.sh 2>&1 | tee build.log
 
+      - name: Compatibility report
+        if: always()
+        run: |
+          if [ -f out/compat-report.md ]; then
+            cat out/compat-report.md >> "$GITHUB_STEP_SUMMARY"
+            echo
+            echo "raw report: out/compat-report.md (uploaded with the artefacts)"
+          else
+            echo "_compat report missing - did the build stop before packaging?_" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Summary
         if: always()
         run: |

@@ -121,6 +121,36 @@ boot.img 结构核对（对照原厂 `crDroidAndroid-14.0-20250523`）：
 | ramdisk | lz4，1,996,541 | 同（原样保留） |
 | AVB | 页对齐处 704 B vbmeta + 末尾 `AVBf` | 同 |
 
+## 离线兼容性检查（不需要真机）
+
+`scripts/compat-check.sh`（实现是同目录的 `compat_check.py`）每次构建都会跑，
+只要有一项失败就让 CI 变红。基线来自原厂 `crDroidAndroid-14.0-20250523` 的 boot.img，
+已固化进 `prebuilt/`（`stock-kernel.config` 6050 行、`stock-dtb.sha256`、`stock-ramdisk.sha256`），
+所以检查完全离线、可复现。
+
+| 检查 | 判据 |
+|---|---|
+| config parity | 原厂 1691 个 `=y/=m` 项必须逐项一致（`prebuilt/compat-allowlist.txt` 只放有正当理由的例外） |
+| module drift | 不允许把任何驱动变成 `=m`（ROM 没有 `/vendor/lib/modules`） |
+| subsystems | binder / binderfs / configfs / FUSE / sdcardfs / dm-verity / SELinux / COMPAT / overlayfs / tmpfs-xattr / ext4 / f2fs / zram 必须 `=y` |
+| boot.img shape | 128 MiB、header v0、page 4096、`UNCOMPRESSED_IMG` 包装、AVB 块与尾部 `AvbFooter` |
+| device tree | 追加的 4 个 DTB 必须与原厂 hash 集合完全一致 |
+| ramdisk | 必须与原厂 ramdisk 逐字节相同 |
+| cmdline | 原厂 cmdline 必须是前缀（KSU 变体会在后面追加两个参数） |
+
+本地随时可以跑：
+
+```bash
+OUT=./out ./scripts/build.sh          # 构建完自动检查
+./scripts/compat-check.sh ./out       # 或单独复检，输出 out/compat-report.md
+```
+
+它覆盖的是"驱动/结构/ABI 层面能不能起来"，**不覆盖**引导、闭源 HAL、相机/指纹/基带
+这些运行时行为——那一步仍需真机（建议只刷 boot 分区，出问题 `fastboot flash boot` 回滚）。
+
+`CONFIG_SDCARD_FS` 被显式保留：16.0 分支默认关掉了它，而本 ROM 的 `init.rc` /
+`installd.rc` 仍会 `chmod`/`mkdir` `/config/sdcardfs`，保持与原厂一致可以消掉这个未知项。
+
 ## 构建
 
 ```bash

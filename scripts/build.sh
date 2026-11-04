@@ -185,6 +185,9 @@ set_cfg() {  # $1 = key, $2 = value ("" => disable)
   sed -i "/^$1=/d; /^# $1 is not set/d" "$cfg"
   if [ -z "$2" ]; then echo "# $1 is not set" >> "$cfg"; else echo "$1=$2" >> "$cfg"; fi
 }
+# the ROM's init.rc/installd.rc still create/chmod /config/sdcardfs, so keep the
+# driver even though Android 14 uses FUSE for /sdcard (zero-cost parity with stock)
+set_cfg CONFIG_SDCARD_FS y
 set_cfg CONFIG_KSU "$([ "$ENABLE_KSU" = 1 ] && echo y)"
 if [ "$ENABLE_KSU" = "1" ]; then
   set_cfg CONFIG_KSU_MANUAL_HOOK y
@@ -290,6 +293,13 @@ resolve() { case "$1" in /*) echo "$1";; *) echo "$REPO_ROOT/$1";; esac; }
 if [ -n "${RAMDISK:-}" ]; then
   RAMDISK="$(resolve "$RAMDISK")"
   CMDLINE_FILE="$(resolve "${CMDLINE_FILE:-prebuilt/boot.cmdline}")"
+  if [ "$ENABLE_KSU" = "1" ]; then
+    # allow_shell + shell_su_adb_only are module params, so they have to travel
+    # in the kernel command line of the packed image
+    cp "$CMDLINE_FILE" "$OUT/boot.cmdline"
+    printf ' kernelsu.allow_shell=1 kernelsu.force_feature=shell_su_adb_only:1' >> "$OUT/boot.cmdline"
+    CMDLINE_FILE="$OUT/boot.cmdline"
+  fi
   AVB_VBMETA="$(resolve "${AVB_VBMETA:-prebuilt/boot.avb.vbmeta}")"
   [ -f "$RAMDISK" ] || { echo "FATAL: RAMDISK not found: $RAMDISK"; exit 1; }
   [ -f "$CMDLINE_FILE" ] || { echo "FATAL: CMDLINE_FILE not found: $CMDLINE_FILE"; exit 1; }
@@ -299,6 +309,11 @@ if [ -n "${RAMDISK:-}" ]; then
     --cmdline-file "$CMDLINE_FILE" \
     --avb-vbmeta "$AVB_VBMETA" \
     --out "$OUT/boot.img" --pad-to "${BOOT_PARTITION_SIZE:-134217728}"
+fi
+
+if [ -f "$OUT/boot.img" ] && [ -f "$REPO_ROOT/prebuilt/stock-kernel.config" ]; then
+  log "compatibility check (stock crDroid 10.14 baselines)"
+  bash "$REPO_ROOT/scripts/compat-check.sh" "$OUT"
 fi
 
 log "done"
