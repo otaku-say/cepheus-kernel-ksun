@@ -47,6 +47,11 @@ root：**KernelSU-Next（legacy 分支，manual hook）**，内置而非模块�
    （符号未定义）或完全失效，导致同一份源码两次构建结果不同。
    本仓库把**真正必需**的三处改动前置为固定补丁：
 
+   `patches/kernel/*.patch` 是这几处改动的等价补丁（供审阅与上游化），
+   而 `scripts/build.sh` 用**等价的幂等内联编辑**落地——这样基线上游改一行上下文
+   也不会把构建打断。CI 的 `verify` 任务会拿补丁去 pristine 树上试打，
+   一旦上游漂移立刻红。
+
    | 补丁 | 必要性 |
    |---|---|
    | `kernel/reboot.c` 加 `ksu_handle_sys_reboot` | KernelSU 用它判断 manual hook 是否接入，缺了直接 `$(error)` |

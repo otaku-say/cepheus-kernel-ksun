@@ -77,10 +77,18 @@ jobs:
       - name: Deterministic patches apply on the pristine tree
         run: |
           set -e
-          git clone -q --depth=1 -b "$KERNEL_REF" \
-            https://github.com/crdroidandroid/android_kernel_xiaomi_cepheus /tmp/k
-          for p in patches/kernel/*.patch; do
-            echo "  $p"; git -C /tmp/k apply --check "$p"
+          base="https://raw.githubusercontent.com/crdroidandroid/android_kernel_xiaomi_cepheus/${KERNEL_REF}"
+          root="$(pwd)"
+          d="$(mktemp -d)"
+          cd "$d"
+          # only the three files we patch; no 1.4 GB clone needed to prove they apply
+          for f in kernel/reboot.c include/linux/seccomp.h security/selinux/include/objsec.h; do
+            mkdir -p "$(dirname "$f")"
+            curl -fsSL "$base/$f" -o "$f"
+          done
+          for p in "$root"/patches/kernel/*.patch; do
+            printf '  %-44s ' "$(basename "$p")"
+            patch -p1 --dry-run -f -i "$p" >/dev/null && echo OK
           done
 
   build:

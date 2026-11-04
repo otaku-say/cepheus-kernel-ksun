@@ -163,7 +163,7 @@ if [ "$TOOLCHAIN" = "proton" ]; then
 fi
 # newer clang (19+) promotes a few 4.14-era warnings to errors; keep the build
 # toolchain-agnostic instead of patching vendor trees
-export KCFLAGS="${KCFLAGS:--Wno-unknown-warning-option -Wno-default-const-init-var-unsafe}"
+export KCFLAGS="${KCFLAGS:--Wno-unknown-warning-option -Wno-default-const-init-var-unsafe -Wno-enum-conversion}"
 CC_BIN="${CC_BIN:-clang}"
 # ccache pays off massively on kernel rebuilds (tens of minutes -> minutes)
 if [ "${USE_CCACHE:-1}" = "1" ] && command -v ccache >/dev/null 2>&1; then
