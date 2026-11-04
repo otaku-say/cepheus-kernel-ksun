@@ -8,6 +8,9 @@ set -euo pipefail
 # ---- configuration -----------------------------------------------------------
 KERNEL_REPO="${KERNEL_REPO:-https://github.com/crdroidandroid/android_kernel_xiaomi_cepheus}"
 KERNEL_REF="${KERNEL_REF:-16.0}"
+# pin the exact base commit so an upstream re-base cannot silently change
+# the tree we patch (empty => just track the branch tip)
+KERNEL_SHA="${KERNEL_SHA-aa587668f86bd02ff1d7f825f5a89a886a84c8d8}"
 
 KSU_REPO="${KSU_REPO:-https://github.com/KernelSU-Next/KernelSU-Next}"
 # last legacy commit that still reports UAPI 5 == what manager v3.4.2 speaks
@@ -36,6 +39,11 @@ mkdir -p "$WORK" "$OUT"
 if [ ! -d "$KERNEL_DIR/.git" ]; then
   log "cloning kernel $KERNEL_REF"
   git clone --depth=1 -b "$KERNEL_REF" "$KERNEL_REPO" "$KERNEL_DIR"
+  if [ -n "$KERNEL_SHA" ]; then
+    log "pinning base to $KERNEL_SHA"
+    git -C "$KERNEL_DIR" fetch -q --depth=1 origin "$KERNEL_SHA"
+    git -C "$KERNEL_DIR" checkout -q FETCH_HEAD
+  fi
 else
   log "reusing kernel checkout"
 fi
@@ -242,12 +250,18 @@ if [ "${PACKAGE_ANY_KERNEL:-1}" = "1" ]; then
   ls -lh "$OUT/cepheus-kernel-ksun.zip" | sed 's/^/    /'
 fi
 
-if [ -n "${RAMDISK:-}" ] && [ -f "$RAMDISK" ]; then
+resolve() { case "$1" in /*) echo "$1";; *) echo "$REPO_ROOT/$1";; esac; }
+if [ -n "${RAMDISK:-}" ]; then
+  RAMDISK="$(resolve "$RAMDISK")"
+  CMDLINE_FILE="$(resolve "${CMDLINE_FILE:-prebuilt/boot.cmdline}")"
+  AVB_VBMETA="$(resolve "${AVB_VBMETA:-prebuilt/boot.avb.vbmeta}")"
+  [ -f "$RAMDISK" ] || { echo "FATAL: RAMDISK not found: $RAMDISK"; exit 1; }
+  [ -f "$CMDLINE_FILE" ] || { echo "FATAL: CMDLINE_FILE not found: $CMDLINE_FILE"; exit 1; }
   log "building boot.img (header v0, qcom wrapper, stock layout)"
   python3 "$REPO_ROOT/scripts/mkboot_v0.py" \
     --kernel "$OUT/Image.gz-dtb" --ramdisk "$RAMDISK" \
-    --cmdline-file "${CMDLINE_FILE:-$REPO_ROOT/prebuilt/boot.cmdline}" \
-    --avb-vbmeta "${AVB_VBMETA:-$REPO_ROOT/prebuilt/boot.avb.vbmeta}" \
+    --cmdline-file "$CMDLINE_FILE" \
+    --avb-vbmeta "$AVB_VBMETA" \
     --out "$OUT/boot.img" --pad-to "${BOOT_PARTITION_SIZE:-134217728}"
 fi
 

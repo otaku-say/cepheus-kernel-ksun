@@ -37,4 +37,6 @@ echo "== push"
 git remote remove origin 2>/dev/null
 git remote add origin "https://x-access-token:$GITHUB_TOKEN@github.com/$OWNER/$REPO.git"
 git push -u origin main 2>&1 | tail -5
-echo "== done"
+# never leave the token in .git/config
+git remote set-url origin "https://github.com/$OWNER/$REPO.git"
+echo "== done (token scrubbed from .git/config)"

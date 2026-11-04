@@ -1,0 +1,10 @@
+# keep shell/python/patch files LF regardless of the committing platform
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.patch text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+# binaries
+prebuilt/*.lz4 binary
+prebuilt/*.vbmeta binary
