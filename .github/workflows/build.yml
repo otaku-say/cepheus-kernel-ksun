@@ -150,6 +150,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artefacts
+        if: always()          # keep build.log even when the build fails
         uses: actions/upload-artifact@v4
         with:
           name: cepheus-kernel-${{ matrix.variant }}-${{ env.KERNEL_REF }}

@@ -212,11 +212,15 @@ if [ "${USE_CCACHE:-1}" = "1" ] && command -v ccache >/dev/null 2>&1; then
 fi
 TRIPLE="${TRIPLE:-${CLANG_PREFIX}aarch64-linux-gnu-}"
 export CROSS_COMPILE="${CROSS_COMPILE:-$TRIPLE}"
+# 32-bit compat vDSO needs an ARM32 ld; the kernel looks it up as
+# CROSS_COMPILE_COMPAT (arch/arm64/kernel/vdso32/Makefile), not _ARM32
+export CROSS_COMPILE_COMPAT="${CROSS_COMPILE_COMPAT:-${CLANG_PREFIX}arm-linux-gnueabi-}"
+export CROSS_COMPILE_ARM32="${CROSS_COMPILE_ARM32:-$CROSS_COMPILE_COMPAT}"
 log "clang: $($CC_BIN --version | head -1)"
 log "cross: $CROSS_COMPILE"
 
 MK=(O="$OUT" ARCH=arm64 CC="$CC_BIN" CLANG_TRIPLE="${CLANG_TRIPLE:-$TRIPLE}"
-    CROSS_COMPILE="$CROSS_COMPILE" CROSS_COMPILE_ARM32="${CROSS_COMPILE_ARM32:-${CLANG_PREFIX}arm-linux-gnueabi-}"
+    CROSS_COMPILE="$CROSS_COMPILE" CROSS_COMPILE_ARM32="$CROSS_COMPILE_ARM32" CROSS_COMPILE_COMPAT="$CROSS_COMPILE_COMPAT"
     HOSTCC="${HOSTCC:-gcc}" HOSTCXX="${HOSTCXX:-g++}")
 
 # ---- 5. build ----------------------------------------------------------------
