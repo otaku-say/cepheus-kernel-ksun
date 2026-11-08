@@ -90,6 +90,31 @@ def edit(rel, fn):
         print(f"    already patched {rel}")
 
 if enable_ksu:
+    # (a0) built-in mode never scans for the Manager at boot: core/init.c's
+    # non-late-load branch only calls ksu_throne_tracker_init(), while the
+    # late-load branch also calls track_throne(false). Without that call
+    # manager identity depends entirely on pkg_observer (package change
+    # events), so after a fresh flash the Manager starts but cannot read the
+    # allowlist -> SuperUserViewModel throws "Root access is required" and the
+    # per-app root switches disappear. Add the boot-time scan here.
+    def init_c(s):
+        if s.count("track_throne(false);") >= 2:
+            return s
+        old = "\t\tksu_throne_tracker_init();\n\n\t\tksu_ksud_init();"
+        new = (
+            "\t\tksu_throne_tracker_init();\n\n"
+            "\t\t// [ksu-ksun] built-in mode: scan for the Manager once at boot\n"
+            "\t\t// too, otherwise identity depends solely on pkg_observer.\n"
+            "\t\ttrack_throne(false);\n\n"
+            "\t\tksu_ksud_init();"
+        )
+        if old not in s:
+            print("    !! init.c anchor not found, skipping track_throne patch")
+            return s
+        return s.replace(old, new, 1)
+
+    edit("drivers/kernelsu/kernel/core/init.c", init_c)
+
     # (a) manual-hook sentinel: KernelSU's Kbuild greps kernel/reboot.c for this
     def reboot(s):
         if "ksu_handle_sys_reboot" in s:

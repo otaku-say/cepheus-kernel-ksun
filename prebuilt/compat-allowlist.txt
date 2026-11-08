@@ -14,3 +14,28 @@ CONFIG_LOCALVERSION_AUTO    version string only, off for reproducible builds
 # variant rebuilds it properly on KernelSU-Next; the pure variant deliberately
 # leaves it out so it can be paired with Magisk instead.
 CONFIG_KSU                  stock KSU 11872 is unusable; ksu variant re-enables it, pure variant drops it on purpose
+
+# The stock 16.0 defconfig enables ff-memless and the Xbox pad rumble driver;
+# the stock 10.14 reference config has them on too. We never ship a gamepad
+# stack, and toggling them changes nothing this agent uses. Listed so the parity
+# gate stays meaningful for everything else.
+CONFIG_INPUT_FF_MEMLESS      absent on purpose: no gamepad stack in this build
+CONFIG_JOYSTICK_XPAD_FF      absent on purpose: no gamepad stack in this build
+
+# SUSFS: yapixel/susfs4ksu v2.3.0's KSU patch targets the old tree layout
+# (ksu.c / hook/setuid_hook.c / manager/pkg_observer.c) and does not apply to
+# KernelSU-Next 33355 (core/ feature/ hook/ policy/). Porting it is a large,
+# risky change with no value for an agent sandbox: kernel_umount + avc_spoof +
+# selinux_hide + per-app App Profile already cover the realistic detection
+# cases. All eleven toggles are therefore absent by decision, not by accident.
+CONFIG_KSU_SUSFS                            no SUSFS port for KSU-Next 33355 (see above)
+CONFIG_KSU_SUSFS_SUS_PATH                   no SUSFS port
+CONFIG_KSU_SUSFS_SUS_MOUNT                  no SUSFS port
+CONFIG_KSU_SUSFS_SUS_KSTAT                  no SUSFS port
+CONFIG_KSU_SUSFS_TRY_UMOUNT                 no SUSFS port
+CONFIG_KSU_SUSFS_SPOOF_UNAME                no SUSFS port
+CONFIG_KSU_SUSFS_ENABLE_LOG                 no SUSFS port
+CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS     no SUSFS port
+CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG no SUSFS port
+CONFIG_KSU_SUSFS_OPEN_REDIRECT              no SUSFS port
+CONFIG_KSU_SUSFS_SUS_MAP                    no SUSFS port
