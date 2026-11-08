@@ -40,6 +40,15 @@ env:
   KSU_VERSION_OVERRIDE: '33355'      # == KernelSU-Next manager v3.4.2 versionCode
   KSU_VERSION_TAG_OVERRIDE: 'v3.4.2'
   KSU_MANAGER_PACKAGE: 'com.rifsxd.ksunext'
+  # KernelSU-Next 内核用「Manager APK 的 v2 签名证书 sha256」判定谁是 Manager
+  # (kernel/manager/apk_sign.c: check_v2_signature(path, SIZE, HASH))。
+  # 不注入这两个值时 EXPECTED_MANAGER_HASH 是空串，is_manager_apk() 恒为 false，
+  # 结果 Manager 能启动但读不到 allowlist，超级用户页面报 "Root access is required"，
+  # 每个应用的独立 root 开关也就消失了。这两个值由脚本从目标 APK 提取：
+  #   python3 extract_cert.py KernelSU.apk
+  # 当前对应 com.rifsxd.ksunext 的预置 APK（v3.4.2，debug 重签版）。
+  KSU_NEXT_MANAGER_SIZE: '863'
+  KSU_NEXT_MANAGER_HASH: '1e08a903aef9c3a721510b64ec764d01d3d094eb954161b62544ea8f187b5953'
 
 jobs:
   # Cheap gate: every hook call site, pin and patch must be sane before we burn

@@ -197,6 +197,12 @@ log "defconfig KSU: $(grep -E 'CONFIG_KSU' "$cfg" | tr '\n' ' ')"
 
 # ---- 4. toolchain ------------------------------------------------------------
 export ARCH=arm64
+# Manager 身份校验：KernelSU-Next 的 kernel/Kbuild 用这两个 make 变量拼出
+# -DEXPECTED_MANAGER_SIZE / -DEXPECTED_MANAGER_HASH，再在 apk_sign.c 里比对
+# APK 的 v2 签名证书。make 会继承同名环境变量，所以这里 export 即可。
+export KSU_NEXT_MANAGER_SIZE="${KSU_NEXT_MANAGER_SIZE:-0}"
+export KSU_NEXT_MANAGER_HASH="${KSU_NEXT_MANAGER_HASH:-}"
+log "manager cert: size=${KSU_NEXT_MANAGER_SIZE} hash=${KSU_NEXT_MANAGER_HASH:0:16}..."
 if [ "$TOOLCHAIN" = "proton" ]; then
   if [ ! -d "$WORK/proton-clang" ]; then
     log "cloning proton-clang"
