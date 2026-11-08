@@ -113,7 +113,7 @@ if enable_ksu:
             return s
         return s.replace(old, new, 1)
 
-    edit("drivers/kernelsu/kernel/core/init.c", init_c)
+    edit("drivers/kernelsu/core/init.c", init_c)
 
     # (a) manual-hook sentinel: KernelSU's Kbuild greps kernel/reboot.c for this
     def reboot(s):
